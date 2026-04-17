@@ -1,6 +1,8 @@
 # CSC-2400-MazeSolvingProject
-## Project Title : Maze SOlving using BFS, DFS, A*, Bidirectionals search, and Ant colony optimization(ACO)
-## Project description : The maze problem involves finding a path from a starting position to a destination within a maze. This project solves the maze pathfinding problem using multiple algorithms. The goal is to find a path from the start cell to the goal cell while avaoiding walls(blocked cells).
+## Project Title : 
+Maze SOlving using BFS, DFS, A*, Bidirectionals search, and Ant colony optimization(ACO)
+## Project description : 
+The maze problem involves finding a path from a starting position to a destination within a maze. This project solves the maze pathfinding problem using multiple algorithms. The goal is to find a path from the start cell to the goal cell while avaoiding walls(blocked cells).
 Algorithms that are implemented :
 - Breadth First Search (BFS)
 - Depth First Search (DFS)
