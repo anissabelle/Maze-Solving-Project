@@ -37,7 +37,6 @@ vector<int> dfs(vector<vector<int>> &adj){
 
 
 // Dikstra
-//A* - implementing this for heuristic-based optimization
 int heuristic(Point a, Point b){
     return abs(a.x - b.x)+ (abs a.y - b.y);
 }
