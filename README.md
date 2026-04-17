@@ -19,13 +19,20 @@ Maze Grid Representation :
 Team Members : 
 - Mani Botla
 - Anissa Sollman
-- Nick Livertt
+- Nick Liverett
 
 ## How to Compile and Run the code
 - Requirements to compile and run :
   * C++ Compiler
   * VS Code
 - Steps to Run :
+```bash
+g++ main.cpp -o .maze_runner.exe
+
+./maze_runner.exe
+# Either specify a file or directory to run the algorithms in and select options in the menu
+# In the case of specifing a directory, it will run all the algorithms on all the files.
+```
 
 
 
