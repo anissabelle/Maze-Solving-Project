@@ -6,66 +6,111 @@
 #include <chrono>
 #include <ctime>
 #include <algorithm>
+#include <stack>
+#include <climits>
+#include <cmath>
 using namespace std;
 
 // Using the chrono library: https://kahimyang.com/developer/3146/exploring-c-stdchrono-with-comprehensive-examples for elapsed time of algorithms
+vector<vector<int>> maze;
 
-// https://www.geeksforgeeks.org/cpp/implementation-of-graph-in-cpp/
-class Graph{
-    map<int, list<int> > adjList;
+struct Point {
+    int x, y;
+
+    bool operator==(const Point& other) const {
+        return x == other.x && y == other.y;
+    }
+
+    bool operator<(const Point& other) const {
+        if (x != other.x) return x < other.x;
+        return y < other.y;
+    }
 };
 
-// DFS Algorithm: https://www.geeksforgeeks.org/dsa/depth-first-search-or-dfs-for-a-graph/
-void dfsRec(vector<vector<int>> &adj, vector<bool> &visited, int s, vector<int> &res){
+bool isValid(int x, int y, const vector<vector<int>>& maze) {
+    return y >= 0 && y < maze.size() &&
+           x >= 0 && x < maze[0].size() &&
+           maze[y][x] == 0;
+}
 
-    visited[s] = true;
+// DFS Algorithm
+vector<Point> dfsMaze(const vector<vector<int>>& maze) {
+    int rows = maze.size();
+    int cols = maze[0].size();
 
-    res.push_back(s);
+    vector<vector<bool>> visited(rows, vector<bool>(cols, false));
+    vector<Point> result;
+    stack<Point> st;
 
-    for(int i : adj[s]){
-        if(visited[i] == false){
-            dfsRec(adj, visited, i, res);
+    st.push({0, 0});
+
+    while (!st.empty()) {
+        Point curr = st.top();
+        st.pop();
+
+        if (!isValid(curr.x, curr.y, maze) || visited[curr.y][curr.x]) {
+            continue;
         }
+
+        visited[curr.y][curr.x] = true;
+        result.push_back(curr);
+
+        if (curr.x == cols - 1 && curr.y == rows - 1) {
+            break;
+        }
+
+        st.push({curr.x + 1, curr.y});
+        st.push({curr.x - 1, curr.y});
+        st.push({curr.x, curr.y + 1});
+        st.push({curr.x, curr.y - 1});
     }
+
+    return result;
 }
 
-vector<int> dfs(vector<vector<int>> &adj){
-    vector<bool> visited(adj.size(), false);
-    vector<int> res;
-    dfsRec(adj, visited, 0, res);
-    return res;
-}
+// BFS Algorithm
+vector<Point> bfsMaze(const vector<vector<int>>& maze) {
+    int rows = maze.size();
+    int cols = maze[0].size();
 
-// BFS Algorithm: https://www.geeksforgeeks.org/dsa/breadth-first-search-or-bfs-for-a-graph/
-vector<int> bfs(vector<vector<int>> &adj){
-    int V = adj.size();
-    vector<bool> visited(V,false);
-    vector<int> res;
+    vector<vector<bool>> visited(rows, vector<bool>(cols, false));
+    vector<Point> result;
+    queue<Point> q;
 
-    queue<int> q;
+    if (!isValid(0, 0, maze)) return result;
 
-    int src = 0;
-    visited[src] = true;
-    q.push(src);
+    q.push({0, 0});
+    visited[0][0] = true;
 
-    while(!q.empty()){
-        int curr = q.front();
+    while (!q.empty()) {
+        Point curr = q.front();
         q.pop();
-        res.push_back(curr);
 
-        for(int x : adj[curr]){
-            if(!visited[x]){
-                visited[x] = true;
-                q.push(x);
+        result.push_back(curr);
+
+        if (curr.x == cols - 1 && curr.y == rows - 1) {
+            break;
+        }
+
+        vector<Point> neighbors = { // defines neighboring nodes
+            {curr.x + 1, curr.y},
+            {curr.x - 1, curr.y},
+            {curr.x, curr.y + 1},
+            {curr.x, curr.y - 1}
+        };
+
+        for (const auto& n : neighbors) {   // Checks what neighbor node paths can be taken
+            if (isValid(n.x, n.y, maze) && !visited[n.y][n.x]) {
+                visited[n.y][n.x] = true;
+                q.push(n);
             }
         }
     }
 
-    return res;
-
+    return result;
 }
 
-// Dikstra
+// A*
 int heuristic(Point a, Point b){
     return abs(a.x - b.x)+ (abs a.y - b.y);
 }
@@ -104,7 +149,7 @@ vector<Point> Astar(){
       return{};
 }
 
-// Ant Colony Optimization: https://projectsinventory.com/simulation-of-ant-colony-optimization-gaming-project-in-c/
+// Ant Colony Optimization
 
 // Grid Dimensions
 const int WIDTH = 10;
@@ -114,62 +159,213 @@ const int HEIGHT = 10;
 const int dx[] = {0, 1, 0, -1};
 const int dy[] = {1, 0, -1, 0};
 
-class Ant{
-    public:
+struct Ant{
         int x, y;
-        Ant(int startX, int startY) : x(startX), y(startY) {}
-        void move(){
-            int direction = rand() % 4;
-            x += dx[direction];
-            y += dy[direction];
-            x = max(0, min(WIDTH - 1, x));
-            y = max(0, min(HEIGHT - 1, y));
+        vector<pair<int,int>> path;
+        vector<vector<bool>> visited;
+        bool reachedGoal=false;
 
-        }
+        Ant(int startX, int startY, int width, int height)
+        : x(startX), y(startY), visited(height, vector<bool>(width, false)) {
+        path.push_back({x, y});
+        visited[y][x] = true;
+    }
 };
 
-void AntColonyOpt(vector<Ant> ants, int numAnts){
-    int startX = 0, startY = 0;
-    int goalX = WIDTH - 1, goalY = HEIGHT - 1;
- 
-    // Initialize ants
-    for (int i = 0; i < numAnts; ++i) {
-        ants.emplace_back(startX, startY);
-    }
- 
-    // Simulation loop
-    for (int step = 0; step < 100; ++step) {
-        cout << "Step " << step + 1 << ":" << endl;
-        for (auto& ant : ants) {
-            ant.move();
-            cout << "Ant at (" << ant.x << ", " << ant.y << ")" << endl;
+
+double heuristic(int x, int y, int goalX, int goalY) {
+    return 1.0 / (abs(goalX - x) + abs(goalY - y) + 1.0);
+}
+
+pair<int,int> chooseNextMove(
+    Ant& ant,
+    const vector<vector<int>>& maze,
+    const vector<vector<double>>& pheromone,
+    int goalX, int goalY,
+    double alpha, double beta
+) {
+    vector<pair<int,int>> neighbors = {
+        {ant.x + 1, ant.y},
+        {ant.x - 1, ant.y},
+        {ant.x, ant.y + 1},
+        {ant.x, ant.y - 1}
+    };
+
+    vector<pair<int,int>> validMoves;
+    vector<double> probabilities;
+    double total = 0.0;
+
+    for (auto& n : neighbors) {
+        int nx = n.first;
+        int ny = n.second;
+
+        if (isValid(nx, ny, maze) && !ant.visited[ny][nx]) {
+            double tau = pow(pheromone[ny][nx], alpha);
+            double eta = pow(heuristic(nx, ny, goalX, goalY), beta);
+            double score = tau * eta;
+
+            validMoves.push_back({nx, ny});
+            probabilities.push_back(score);
+            total += score;
         }
- 
-        // Check if any ant reached the goal
-        bool goalReached = false;
-        for (const auto& ant : ants) {
+    }
+
+    if (validMoves.empty()) {
+        return {-1, -1};
+    }
+
+    double r = ((double) rand() / RAND_MAX) * total;
+    double cumulative = 0.0;
+
+    for (int i = 0; i < validMoves.size(); i++) {
+        cumulative += probabilities[i];
+        if (r <= cumulative) {
+            return validMoves[i];
+        }
+    }
+
+    return validMoves.back();
+}
+
+vector<pair<int,int>> AntColonyOpt(
+    const vector<vector<int>>& maze,
+    int numAnts,
+    int iterations
+) {
+    int height = maze.size();
+    int width = maze[0].size();
+
+    int startX = 0, startY = 0;
+    int goalX = width - 1, goalY = height - 1;
+
+    vector<vector<double>> pheromone(height, vector<double>(width, 1.0));
+
+    double alpha = 1.0;
+    double beta = 3.0;
+    double evaporation = 0.3;
+    double Q = 100.0;
+    int maxSteps = width * height;
+
+    vector<pair<int,int>> bestPath;
+    int bestLength = INT_MAX;
+
+    srand(time(0));
+
+    for (int iter = 0; iter < iterations; iter++) {
+        vector<Ant> ants;
+
+        for (int i = 0; i < numAnts; i++) {
+            ants.emplace_back(startX, startY, width, height);
+        }
+
+        for (auto& ant : ants) {
+            for (int step = 0; step < maxSteps; step++) {
+                if (ant.x == goalX && ant.y == goalY) {
+                    ant.reachedGoal = true;
+                    break;
+                }
+
+                pair<int,int> nextMove = chooseNextMove(
+                    ant, maze, pheromone, goalX, goalY, alpha, beta
+                );
+
+                if (nextMove.first == -1) {
+                    break;
+                }
+
+                ant.x = nextMove.first;
+                ant.y = nextMove.second;
+                ant.path.push_back({ant.x, ant.y});
+                ant.visited[ant.y][ant.x] = true;
+            }
+
             if (ant.x == goalX && ant.y == goalY) {
-                goalReached = true;
-                break;
+                ant.reachedGoal = true;
+
+                if (ant.path.size() < bestLength) {
+                    bestLength = ant.path.size();
+                    bestPath = ant.path;
+                }
             }
         }
- 
-        if (goalReached) {
-            cout << "An ant has reached the goal!" << endl;
-            break;
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                pheromone[y][x] *= (1.0 - evaporation);
+                if (pheromone[y][x] < 0.01) {
+                    pheromone[y][x] = 0.01;
+                }
+            }
         }
- 
-        cout << endl;
+
+        for (const auto& ant : ants) {
+            if (ant.reachedGoal) {
+                double deposit = Q / ant.path.size();
+                for (const auto& cell : ant.path) {
+                    int x = cell.first;
+                    int y = cell.second;
+                    pheromone[y][x] += deposit;
+                }
+            }
+        }
+
+        cout << "Iteration " << iter + 1;
+        if (bestLength < INT_MAX) {
+            cout << " | Best path length so far: " << bestLength << endl;
+        } else {
+            cout << " | No path found yet" << endl;
+        }
     }
-} 
+
+    return bestPath;
+}
 
 int main(){
 
+    vector<vector<int>> maze;
     int numAnts = 0;
     int choice = 0;
+    int graphSizeChoice = 0;
+
 
     // Displaying Menu
     cout << "*********  Algorithm Times  *********" << endl;
+    cout << "Select Graph size: " << endl;
+    cout << "1. imperfect small" << endl;
+    cout << "2. perfect small" << endl;
+    cout << "3. imperfect medium" << endl;
+    cout << "4. perfect medium" << endl;
+    cout << "5. imperfect large" << endl;
+    cout << "6. perfect large" << endl << endl;
+    cout << "Size: ";
+    cin >> graphSizeChoice;
+
+    while(graphSizeChoice < 1 || graphSizeChoice > 6){
+        cout << "Please choose a valid graph size: ";
+        cin >> graphSizeChoice;
+    }
+
+    switch(graphSizeChoice){
+        case 1:{
+            break;
+        }
+        case 2:{
+            break;
+        }
+        case 3:{
+            break;
+        }
+        case 4:{
+            break;
+        }
+        case 5:{
+            break;
+        }
+        case 6:{
+            break;
+        }
+    }
+
     cout << "1. DFS" << endl;
     cout << "2. BFS" << endl;
     cout << "3. A*" << endl;
@@ -184,46 +380,46 @@ int main(){
     }
 
     switch(choice){
-        case 1:
+        case 1:{
             // DFS
             auto start = std::chrono::steady_clock::now();
-
+            dfsMaze(maze);
             auto end = std::chrono::steady_clock::now();
             auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
             cout << "Execution time of DFS traversal: " << duration.count() << endl;
         break;
-
-        case 2:
+        }
+        case 2:{
             // BFS
             auto start = std::chrono::steady_clock::now();
-
+            bfsMaze(maze);
             auto end = std::chrono::steady_clock::now();
             auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
             cout << "Execution time of BFS traversal: " << duration.count() << endl;
         break;
-
-        case 3:
+        }  
+        case 3:{
             // A*
             auto start = std::chrono::steady_clock::now();
-
+            Astar(maze);
             auto end = std::chrono::steady_clock::now();
             auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
             cout << "Execution time of A*: " << duration.count() << endl;
         break;
-
-        case 4:
+        }
+        case 4:{
             // Ant Colony Optimization
             cout << "How many ants are solving the maze?" << endl;
             cout << "Number of Ants: ";
             cin >> numAnts;
             auto start = std::chrono::steady_clock::now();
-
+            AntColonyOpt(maze);
             auto end = std::chrono::steady_clock::now();
             auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
             cout << "Execution time of Ant Colony Optimization: " << duration.count() << endl;
         break;
-
-        case 5:
+        }
+        case 5:{
             auto start = std::chrono::steady_clock::now();
 
             auto end = std::chrono::steady_clock::now();
@@ -248,11 +444,12 @@ int main(){
             auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
             cout << "Execution time of Ant Colony Optimization: " << duration.count() << endl;
         break;
-
-        case 6:
+        }
+        case 6:{
             cout << "Goodbye!" << endl;
             return 0;
         break;
+        }
     }
 }
 
