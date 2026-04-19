@@ -1,55 +1,48 @@
-#include <iostream>
-#include <map>
-#include <list>
-#include <vector>
-#include <queue>
-#include <chrono>
-#include <ctime>
 #include <algorithm>
+
 #include <stack>
 #include <climits>
 #include <cmath>
+
+#include <chrono>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <limits>
+#include <queue>
+#include <string>
+#include <vector>
+
+
 using namespace std;
+namespace fs = std::filesystem;
 
-// Using the chrono library: https://kahimyang.com/developer/3146/exploring-c-stdchrono-with-comprehensive-examples for elapsed time of algorithms
-vector<vector<int>> maze;
-
-struct Point {
-    int x, y;
-
-    bool operator==(const Point& other) const {
-        return x == other.x && y == other.y;
+vector<string> loadGrid(const string& path) {
+    ifstream in(path);
+    vector<string> grid;
+    string line;
+    while (getline(in, line)) {
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        if (!line.empty()) grid.push_back(line);
     }
-
-    bool operator<(const Point& other) const {
-        if (x != other.x) return x < other.x;
-        return y < other.y;
-    }
-};
-
-bool isValid(int x, int y, const vector<vector<int>>& maze) {
-    return y >= 0 && y < maze.size() &&
-           x >= 0 && x < maze[0].size() &&
-           maze[y][x] == 0;
+    return grid;
 }
 
-// DFS Algorithm
-vector<Point> dfsMaze(const vector<vector<int>>& maze) {
-    int rows = maze.size();
-    int cols = maze[0].size();
-
-    vector<vector<bool>> visited(rows, vector<bool>(cols, false));
-    vector<Point> result;
-    stack<Point> st;
-
-    st.push({0, 0});
-
-    while (!st.empty()) {
-        Point curr = st.top();
-        st.pop();
-
-        if (!isValid(curr.x, curr.y, maze) || visited[curr.y][curr.x]) {
-            continue;
+vector<vector<int>> buildAdj(const vector<string>& g) {
+    int h = static_cast<int>(g.size());
+    int w = static_cast<int>(g[0].size());
+    auto id = [w](int r, int c) { return r * w + c; };
+    vector<vector<int>> adj(h * w);
+    int dr[4] = {-1, 1, 0, 0};
+    int dc[4] = {0, 0, -1, 1};
+    for (int r = 0; r < h; ++r) {
+        for (int c = 0; c < w; ++c) {
+            if (g[r][c] == '#') continue;
+            int u = id(r, c);
+            for (int k = 0; k < 4; ++k) {
+                int nr = r + dr[k], nc = c + dc[k];
+                if (nr >= 0 && nr < h && nc >= 0 && nc < w && g[nr][nc] == '.') adj[u].push_back(id(nr, nc));
+            }
         }
 
         visited[curr.y][curr.x] = true;
@@ -64,89 +57,91 @@ vector<Point> dfsMaze(const vector<vector<int>>& maze) {
         st.push({curr.x, curr.y + 1});
         st.push({curr.x, curr.y - 1});
     }
-
-    return result;
+    return adj;
 }
 
-// BFS Algorithm
-vector<Point> bfsMaze(const vector<vector<int>>& maze) {
-    int rows = maze.size();
-    int cols = maze[0].size();
+pair<int, int> srcGoal(const vector<string>& g) {
+    int h = static_cast<int>(g.size());
+    int w = static_cast<int>(g[0].size());
+    int src = -1, goal = -1;
+    for (int r = 0; r < h && src == -1; ++r) for (int c = 0; c < w; ++c) if (g[r][c] == '.') { src = r * w + c; break; }
+    for (int r = h - 1; r >= 0 && goal == -1; --r) for (int c = w - 1; c >= 0; --c) if (g[r][c] == '.') { goal = r * w + c; break; }
+    if (goal == -1) goal = src;
+    return {src, goal};
+}
 
-    vector<vector<bool>> visited(rows, vector<bool>(cols, false));
-    vector<Point> result;
-    queue<Point> q;
+template <class F>
+long long us(F&& f) {
+    auto t0 = chrono::steady_clock::now();
+    f();
+    auto t1 = chrono::steady_clock::now();
+    return chrono::duration_cast<chrono::microseconds>(t1 - t0).count();
+}
 
-    if (!isValid(0, 0, maze)) return result;
+int runDfs(const vector<vector<int>>& adj, int src) {
+    if (src < 0) return 0;
+    vector<char> vis(adj.size(), 0);
+    vector<int> st{src};
+    int seen = 0;
+    while (!st.empty()) {
+        int u = st.back();
+        st.pop_back();
+        if (vis[u]) continue;
+        vis[u] = 1;
+        ++seen;
+        for (int v : adj[u]) if (!vis[v]) st.push_back(v);
+    }
+    return seen;
+}
 
-    q.push({0, 0});
-    visited[0][0] = true;
-
+int runBfs(const vector<vector<int>>& adj, int src) {
+    if (src < 0) return 0;
+    vector<char> vis(adj.size(), 0);
+    queue<int> q;
+    q.push(src);
+    vis[src] = 1;
+    int seen = 0;
     while (!q.empty()) {
-        Point curr = q.front();
+        int u = q.front();
         q.pop();
-
-        result.push_back(curr);
-
-        if (curr.x == cols - 1 && curr.y == rows - 1) {
-            break;
-        }
-
-        vector<Point> neighbors = { // defines neighboring nodes
-            {curr.x + 1, curr.y},
-            {curr.x - 1, curr.y},
-            {curr.x, curr.y + 1},
-            {curr.x, curr.y - 1}
-        };
-
-        for (const auto& n : neighbors) {   // Checks what neighbor node paths can be taken
-            if (isValid(n.x, n.y, maze) && !visited[n.y][n.x]) {
-                visited[n.y][n.x] = true;
-                q.push(n);
-            }
-        }
+        ++seen;
+        for (int v : adj[u]) if (!vis[v]) { vis[v] = 1; q.push(v); }
     }
-
-    return result;
+    return seen;
 }
 
-// A*
-int heuristic(Point a, Point b){
-    return abs(a.x - b.x)+ (abs a.y - b.y);
-}
-
-vector<Point> Astar(){
-    using Node = pair<int, Point>;
-    priority_queue<Node, vector<Node>,greater<Node>> pq;
-    
-    map<Point, int> gCost;
-    map<Point, Point> parent;
-    
-    gCost[start] = 0;
-    pq.push({heuristic(start,goal), start});
-    
+vector<int> Astar(const vector<string>& g, int src, int goal) {
+    vector<int> path;
+    int h = static_cast<int>(g.size()), w = static_cast<int>(g[0].size()), n = h * w;
+    if (src < 0 || goal < 0 || src >= n || goal >= n) return path;
+    auto rc = [w](int id) { return pair<int, int>{id / w, id % w}; };
+    auto h1 = [&](int a, int b) { auto [ar, ac] = rc(a); auto [br, bc] = rc(b); return abs(ar - br) + abs(ac - bc); };
+    vector<int> dist(n, numeric_limits<int>::max()), parent(n, -1);
+    vector<char> closed(n, 0);
+    using Node = pair<int, int>;
+    priority_queue<Node, vector<Node>, greater<Node>> pq;
+    int dr[4] = {-1, 1, 0, 0}, dc[4] = {0, 0, -1, 1};
+    dist[src] = 0;
+    pq.push({h1(src, goal), src});
     while (!pq.empty()) {
-        Point curr = pq.top().second;
+        int u = pq.top().second;
         pq.pop();
-        
-        if (curr == goal)
-          return recontructPath(parent, goal);
-        for (auto d : directions) {
-            Point next = {curr.x + d.x, curr.y +d.y};
-            
-            if(!isValid(next.c, next.y)) continue;
-            
-            int newCost = gCost[curr] + 1;
-            
-            if(!gCost.count(next) || newCost < gCost[next]) {
-                gCost[next] = newCost;
-                int priority = newCost + heuristic(next,goal);
-                pq.push({priority, next});
-                parent[next] = curr;
-            }
+        if (closed[u]) continue;
+        closed[u] = 1;
+        if (u == goal) break;
+        auto [r, c] = rc(u);
+        for (int k = 0; k < 4; ++k) {
+            int nr = r + dr[k], nc = c + dc[k];
+            if (nr < 0 || nr >= h || nc < 0 || nc >= w || g[nr][nc] == '#') continue;
+            int v = nr * w + nc, nd = dist[u] + 1;
+            if (nd < dist[v]) { dist[v] = nd; parent[v] = u; pq.push({nd + h1(v, goal), v}); }
         }
     }
-      return{};
+    if (src == goal) return {src};
+    if (parent[goal] == -1) return path;
+    for (int at = goal; at != -1; at = parent[at]) path.push_back(at);
+    reverse(path.begin(), path.end());
+    return path;
 }
 
 // Ant Colony Optimization
@@ -318,9 +313,82 @@ vector<pair<int,int>> AntColonyOpt(
     }
 
     return bestPath;
+
+vector<int> Dijkstra(const vector<string>& g, int src, int goal) {
+    vector<int> path;
+    int h = static_cast<int>(g.size()), w = static_cast<int>(g[0].size()), n = h * w;
+    if (src < 0 || goal < 0 || src >= n || goal >= n) return path;
+    vector<int> dist(n, numeric_limits<int>::max()), parent(n, -1);
+    vector<char> done(n, 0);
+    using Node = pair<int, int>;
+    priority_queue<Node, vector<Node>, greater<Node>> pq;
+    int dr[4] = {-1, 1, 0, 0}, dc[4] = {0, 0, -1, 1};
+    dist[src] = 0;
+    pq.push({0, src});
+    while (!pq.empty()) {
+        int u = pq.top().second;
+        pq.pop();
+        if (done[u]) continue;
+        done[u] = 1;
+        if (u == goal) break;
+        int r = u / w, c = u % w;
+        for (int k = 0; k < 4; ++k) {
+            int nr = r + dr[k], nc = c + dc[k];
+            if (nr < 0 || nr >= h || nc < 0 || nc >= w || g[nr][nc] == '#') continue;
+            int v = nr * w + nc, nd = dist[u] + 1;
+            if (nd < dist[v]) { dist[v] = nd; parent[v] = u; pq.push({nd, v}); }
+        }
+    }
+    if (src == goal) return {src};
+    if (parent[goal] == -1) return path;
+    for (int at = goal; at != -1; at = parent[at]) path.push_back(at);
+    reverse(path.begin(), path.end());
+    return path;
 }
 
-int main(){
+vector<string> parseStem(const fs::path& file) {
+    string s = file.stem().string();
+    vector<string> out;
+    size_t start = 0;
+    while (true) {
+        size_t pos = s.find('_', start);
+        if (pos == string::npos) { out.push_back(s.substr(start)); break; }
+        out.push_back(s.substr(start, pos - start));
+        start = pos + 1;
+    }
+    return out;
+
+}
+
+void runDirectory(const fs::path& dir) {
+    vector<fs::path> files;
+    for (const auto& e : fs::directory_iterator(dir)) if (e.is_regular_file() && e.path().extension() == ".txt") files.push_back(e.path());
+    sort(files.begin(), files.end());
+    for (const auto& file : files) {
+        auto maze = loadGrid(file.string());
+        if (maze.empty()) continue;
+        auto adj = buildAdj(maze);
+        auto sg = srcGoal(maze);
+        int src = sg.first;
+        int goal = sg.second;
+        auto name = parseStem(file);
+        string type = name.size() > 0 ? name[0] : "unknown";
+        string size = name.size() > 1 ? name[1] : "unknown";
+        long long dfsUs = us([&] { (void)runDfs(adj, src); });
+        long long bfsUs = us([&] { (void)runBfs(adj, src); });
+        long long astarUs = us([&] { (void)Astar(maze, src, goal); });
+        long long dijkstraUs = us([&] { (void)Dijkstra(maze, src, goal); });
+        cout << file.filename().string()
+             << " | perfection: " << type
+             << " | size: " << size
+             << " | time(us) dfs=" << dfsUs
+             << " bfs=" << bfsUs
+             << " astar=" << astarUs
+             << " dijkstra=" << dijkstraUs
+             << '\n';
+    }
+}
+
 
     vector<vector<int>> maze;
     int numAnts = 0;
@@ -450,6 +518,49 @@ int main(){
             return 0;
         break;
         }
+
+void runMenu(const vector<string>& maze) {
+    auto adj = buildAdj(maze);
+    auto sg = srcGoal(maze);
+    int src = sg.first;
+    int goal = sg.second;
+    cout << "1. DFS\n2. BFS\n3. A*\n4. Dijkstra\n5. Compare all\n6. Exit\nSelect 1-6: ";
+    int choice = 0;
+    cin >> choice;
+    if (choice == 1) {
+        cout << "Execution time of DFS traversal: " << us([&] { (void)runDfs(adj, src); }) << '\n';
+    } else if (choice == 2) {
+        cout << "Execution time of BFS traversal: " << us([&] { (void)runBfs(adj, src); }) << '\n';
+    } else if (choice == 3) {
+        vector<int> path;
+        long long t = us([&] { path = Astar(maze, src, goal); });
+        cout << "Execution time of A*: " << t << '\n';
+        cout << "A* path length: " << path.size() << '\n';
+    } else if (choice == 4) {
+        vector<int> path;
+        long long t = us([&] { path = Dijkstra(maze, src, goal); });
+        cout << "Execution time of Dijkstra: " << t << '\n';
+        cout << "Dijkstra path length: " << path.size() << '\n';
+    } else if (choice == 5) {
+        cout << "Execution time of DFS traversal: " << us([&] { (void)runDfs(adj, src); }) << '\n';
+        cout << "Execution time of BFS traversal: " << us([&] { (void)runBfs(adj, src); }) << '\n';
+        cout << "Execution time of A*: " << us([&] { (void)Astar(maze, src, goal); }) << '\n';
+        cout << "Execution time of Dijkstra: " << us([&] { (void)Dijkstra(maze, src, goal); }) << '\n';
+
     }
+}
+
+int main(int argc, char** argv) {
+    string input = argc > 1 ? argv[1] : "";
+    if (input.empty()) { cout << "Dataset file path: "; getline(cin, input); }
+    fs::path p(input);
+    if (fs::exists(p) && fs::is_directory(p)) {
+        runDirectory(p);
+        return 0;
+    }
+    auto maze = loadGrid(input);
+    if (maze.empty()) return 1;
+    runMenu(maze);
+    return 0;
 }
 
