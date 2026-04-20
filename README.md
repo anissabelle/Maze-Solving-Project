@@ -19,8 +19,8 @@ Maze Grid Representation :
 
 Team Members : 
 - Mani Botla
-- Anissa Sollman (https://github.com/yourusername)
-- Nick Liverett
+- Anissa Sollman (https://github.com/anissabelle)
+- Nick Liverett (https://github.com/nicholasliverett)
 
 ## How to Compile and Run the code
 - Requirements to compile and run :
