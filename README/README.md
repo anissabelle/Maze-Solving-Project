@@ -18,9 +18,9 @@ https://www.kaggle.com/datasets/mexwell/maze-dataset/data?select=perfect_maze }
 Maze Grid Representation : 
 
 Team Members : 
-- Mani Botla (https://github.com/bmaniswarupa-lab)
-- Anissa Sollman (https://github.com/anissabelle)
-- Nick Liverett (https://github.com/nicholasliverett)
+- Mani Botla
+- Anissa Sollman
+- Nick Liverett
 
 ## How to Compile and Run the code
 - Requirements to compile and run :
